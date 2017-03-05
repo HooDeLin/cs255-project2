@@ -21,6 +21,28 @@ def setup_context():
     return context
 
 
+def setup_connection(url):
+    context = setup_context()
+    connection = SSL.Connection(
+        context, socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+
+    port = url.port if (url.port is not None) else DEFAULT_HTTPS_PORT
+    connection.set_tlsext_host_name(url.hostname)
+
+    try:
+        connection.connect((url.hostname, port))
+    except socket.error:
+        sys.exit('Connection failed')
+
+    connection.set_connect_state()
+
+    try:
+        connection.do_handshake()
+    except Exception:
+        sys.exit('SSL Handshake failed')
+    return connection
+
+
 def send_get_request(connection, url):
     try:
         request_string = build_get_request(url.hostname, url.path)
@@ -45,25 +67,9 @@ def close_connection(connection):
 
 
 def connect_and_download(url):
-    context = setup_context()
-    connection = SSL.Connection(
-        context, socket.socket(socket.AF_INET, socket.SOCK_STREAM))
-
-    port = url.port if (url.port is not None) else DEFAULT_HTTPS_PORT
-
-    connection.set_tlsext_host_name(url.hostname)
-
-    try:
-        connection.connect((url.hostname, port))
-    except socket.error:
-        sys.exit('Connection failed')
-
-    connection.set_connect_state()
-
+    connection = setup_connection(url)
     send_get_request(connection, url)
-
     full_response = read_response(connection)
-
     close_connection(connection)
 
     header, body = full_response.split(HEADER_DELIMITER, 1)
