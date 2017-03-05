@@ -1,20 +1,22 @@
 #!/usr/bin/python
 
-import sys, getopt, argparse
+import sys
+from args_parser import parse_args
+from connection import connect_and_download
+from urlparse import urlparse
 
-# TODO: All these code should be in a parser block
-parser = argparse.ArgumentParser()
-parser.add_argument("--ciphers", help="SSL ciphers to use (SSL)")
-parser.add_argument("--tlsv1.0", help="Use TLSv1.0 (SSL)", action="store_true")
-parser.add_argument("--tlsv1.1", help="Use TLSv1.1 (SSL)", action="store_true")
-parser.add_argument("--tlsv1.2", help="Use TLSv1.2 (SSL)", action="store_true")
-parser.add_argument("-3", "--sslv3", help="Use SSLv3 (SSL)", action="store_true")
-parser.add_argument("--crlfile", help="Get a CRL list in PEM format from the given file")
-parser.add_argument("--cacert", help="CA certificate to verify peer against (SSL)")
-parser.add_argument("--allow-stale-certs", type=int, help="Allow Stale Certs")
-parser.add_argument("--pinnedcertificate", help="Pinned Certificate")
-parser.add_argument("url", help="https url")
-args = vars(parser.parse_args())
+
+def validate_options():
+    # TODO: Implement
+    pass
+
+
+def validate_url(url):
+    if url.scheme != 'https':
+        sys.exit("'%s' is not an https url" % url.geturl())
+
+
+args = parse_args()
 
 ciphers = ""
 tls_version = 2
@@ -23,6 +25,7 @@ cacert = ""
 allow_stale_certs = 0
 pinnedcertificate = ""
 url = ""
+
 if args["url"]:
     url = args["url"]
 if args["ciphers"]:
@@ -43,3 +46,10 @@ if args["allow_stale_certs"]:
     allow_stale_certs = args["allow_stale_certs"]
 if args["pinnedcertificate"]:
     pinnedcertificate = args["pinnedcertificate"]
+
+validate_options()
+
+url = urlparse(url)
+validate_url(url)
+
+connect_and_download(url)
