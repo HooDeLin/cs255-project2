@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 
 import sys
 import os
@@ -13,10 +13,20 @@ def validate_options():
     pass
 
 
-def validate_url(url):
+def validate_url(url, err):
     if url.scheme != 'https':
-        sys.exit("'%s' is not an https url" % url.geturl())
+        # sys.exit("'%s' is not an https url" % url.geturl())
+        err.append("'%s' is not an https url" % url.geturl())
 
+def readPEM(filename, type, err):
+    # 0 - crlfile
+    # 1 - cert
+    try:
+        f = open(args["crlfile"]).read()
+        crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
+        revoked_objects = crl_object.get_revoked()
+    except:
+        err.append("Unable to read file")
 
 args = parse_args()
 
@@ -26,7 +36,7 @@ cacert = OpenSSL.crypto.X509
 pinnedcertificate = OpenSSL.crypto.X509
 allow_stale_certs = 0
 url = ""
-
+err = []
 # Note: To get all the serials of revoked objects, just call
 # for rvk in revoked_objects:
 #    print rvk.get_serial()
@@ -45,33 +55,18 @@ if args["tlsv1.2"]:
 if args["sslv3"]:
     tls_version = OpenSSL.SSL.SSLv3_METHOD
 if args["crlfile"]:
-    try:
-        f = open(args["crlfile"]).read()
-        crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
-        revoked_objects = crl_object.get_revoked()
-    except:
-        # Should we just raise an exception or just print an error?
-        print "Unable to read crl file"
+    readPEM(args["crlfile"], 0, err)
 if args["cacert"]:
-    try:
-        f = open(args["cacert"]).read()
-        cacert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
-    except:
-        # Should we just raise an exception or just print an error?
-        print "Unable to read cacert file"
+    readPEM(args["cacert"], 1, err)
 if args["allow_stale_certs"]:
     allow_stale_certs = args["allow_stale_certs"]
 if args["pinnedcertificate"]:
-    try:
-        f = open(args["pinnedcertificate"]).read()
-        cacert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
-    except:
-        # Should we just raise an exception or just print an error?
-        print "Unable to read pinnedcertificate file"
+    readPEM(args["pinnedcertificate"], 1, err)
 
 validate_options()
 
 url = urlparse(url)
-validate_url(url)
-
+validate_url(url, err)
+if len(err) > 0:
+    sys.exit("There is an error")
 connect_and_download(url)
