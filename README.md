@@ -7,9 +7,9 @@ Done:
 --sslv3
 --crlfile
 --allow-stale-certs
+--cacert
 url
 
 To do:
 --ciphers
---cacert
 --pinnedcertificate
