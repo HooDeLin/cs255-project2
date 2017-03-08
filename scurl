@@ -20,7 +20,6 @@ def validate_url(url):
 
 args = parse_args()
 
-file_extension_dict = {'.pem': OpenSSL.crypto.FILETYPE_PEM, '.der': OpenSSL.crypto.FILETYPE_ASN1}
 ciphers = ""
 tls_version = OpenSSL.SSL.TLSv1_2_METHOD
 cacert = ""
@@ -47,9 +46,8 @@ if args["sslv3"]:
     tls_version = OpenSSL.SSL.SSLv3_METHOD
 if args["crlfile"]:
     try:
-        filename, file_extension = os.path.splitext(args["crlfile"])
         f = open(args["crlfile"]).read()
-        crl_object = OpenSSL.crypto.load_crl(file_extension_dict[file_extension.lower()], f)
+        crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
         revoked_objects = crl_object.get_revoked()
     except:
         # Should we just raise an exception or just print an error?
