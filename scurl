@@ -22,7 +22,7 @@ args = parse_args()
 
 file_extension_dict = {'.pem': OpenSSL.crypto.FILETYPE_PEM, '.der': OpenSSL.crypto.FILETYPE_ASN1}
 ciphers = ""
-tls_version = 2
+tls_version = OpenSSL.SSL.TLSv1_2_METHOD
 cacert = ""
 allow_stale_certs = 0
 pinnedcertificate = ""
@@ -38,13 +38,13 @@ if args["url"]:
 if args["ciphers"]:
     ciphers = args["ciphers"]
 if args["tlsv1.0"]:
-    tls_version = 0
+    tls_version = OpenSSL.SSL.TLSv1_METHOD
 if args["tlsv1.1"]:
-    tls_version = 1
+    tls_version = OpenSSL.SSL.TLSv1_1_METHOD
 if args["tlsv1.2"]:
-    tls_version = 2
+    tls_version = OpenSSL.SSL.TLSv1_2_METHOD
 if args["sslv3"]:
-    tls_version = 3
+    tls_version = OpenSSL.SSL.SSLv3_METHOD
 if args["crlfile"]:
     try:
         filename, file_extension = os.path.splitext(args["crlfile"])
