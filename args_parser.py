@@ -14,8 +14,7 @@ def parse_args():
     parser.add_argument("-3", "--sslv3", help="Use SSLv3 (SSL)",
                         action="store_true")
     parser.add_argument("--crlfile",
-                        help="Get a CRL list in PEM format from given file",
-                        type=file)
+                        help="Get a CRL list in PEM format from given file")
     parser.add_argument("--cacert",
                         help="CA certificate to verify peer against (SSL)",
                         type=file)

@@ -1,9 +1,11 @@
 #!/usr/bin/python
 
 import sys
+import os
 from args_parser import parse_args
 from connection import connect_and_download
 from urlparse import urlparse
+import OpenSSL
 
 
 def validate_options():
@@ -18,13 +20,18 @@ def validate_url(url):
 
 args = parse_args()
 
+file_extension_dict = {'.pem': OpenSSL.crypto.FILETYPE_PEM, '.der': OpenSSL.crypto.FILETYPE_ASN1}
 ciphers = ""
 tls_version = 2
-crlfile = ""
 cacert = ""
 allow_stale_certs = 0
 pinnedcertificate = ""
 url = ""
+
+# Note: To get all the serials of revoked objects, just call
+# for rvk in revoked_objects:
+#    print rvk.get_serial()
+revoked_objects = []
 
 if args["url"]:
     url = args["url"]
@@ -39,7 +46,14 @@ if args["tlsv1.2"]:
 if args["sslv3"]:
     tls_version = 3
 if args["crlfile"]:
-    crlfile = args["crlfile"]
+    try:
+        filename, file_extension = os.path.splitext(args["crlfile"])
+        f = open(args["crlfile"]).read()
+        crl_object = OpenSSL.crypto.load_crl(file_extension_dict[file_extension.lower()], f)
+        revoked_objects = crl_object.get_revoked()
+    except:
+        # Should we just raise an exception or just print an error?
+        print "Unable to read crl file"
 if args["cacert"]:
     cacert = args["cacert"]
 if args["allow_stale_certs"]:
