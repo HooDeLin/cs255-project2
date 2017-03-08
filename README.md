@@ -8,8 +8,8 @@ Done:
 --crlfile
 --allow-stale-certs
 --cacert
+--pinnedcertificate
 url
 
 To do:
 --ciphers
---pinnedcertificate

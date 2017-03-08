@@ -23,8 +23,8 @@ args = parse_args()
 ciphers = ""
 tls_version = OpenSSL.SSL.TLSv1_2_METHOD
 cacert = OpenSSL.crypto.X509
+pinnedcertificate = OpenSSL.crypto.X509
 allow_stale_certs = 0
-pinnedcertificate = ""
 url = ""
 
 # Note: To get all the serials of revoked objects, just call
@@ -62,7 +62,12 @@ if args["cacert"]:
 if args["allow_stale_certs"]:
     allow_stale_certs = args["allow_stale_certs"]
 if args["pinnedcertificate"]:
-    pinnedcertificate = args["pinnedcertificate"]
+    try:
+        f = open(args["pinnedcertificate"]).read()
+        cacert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
+    except:
+        # Should we just raise an exception or just print an error?
+        print "Unable to read pinnedcertificate file"
 
 validate_options()
 
