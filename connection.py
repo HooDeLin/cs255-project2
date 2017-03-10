@@ -15,14 +15,15 @@ def build_get_request(host, path):
     Connection: close\r\n\r\n''' % (path if len(path) > 0 else "/", host)
 
 
-def setup_context():
+def setup_context(tls_version, cipher_list):
     # TODO: Process input arguments and set appropriate context settings here
-    context = SSL.Context(SSL.TLSv1_2_METHOD)
+    context = SSL.Context(tls_version)
+    context.set_cipher_list(cipher_list)
     return context
 
 
-def setup_connection(url):
-    context = setup_context()
+def setup_connection(url, tls_version, cipher_list):
+    context = setup_context(tls_version, cipher_list)
     connection = SSL.Connection(
         context, socket.socket(socket.AF_INET, socket.SOCK_STREAM))
 
@@ -66,8 +67,13 @@ def close_connection(connection):
     connection.close()
 
 
-def connect_and_download(url):
-    connection = setup_connection(url)
+def connect_and_download(url, settings):
+    # TODO: I haven't tried running it yet, need to test whether there's any bug here
+    connection = setup_connection(url, settings["tls_version"], settings["cipher_list"])
+    # Get certificate from the connection
+    # Check with crlfile or cacert or pinnedcertificate
+    # Remember that pinnedcertificate overrides crlfile or cacert
+    # Also check allow_stale_certs
     send_get_request(connection, url)
     full_response = read_response(connection)
     close_connection(connection)

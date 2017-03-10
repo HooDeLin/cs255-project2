@@ -8,11 +8,6 @@ from urlparse import urlparse
 import OpenSSL
 
 
-def validate_options():
-    # TODO: Implement
-    pass
-
-
 def validate_url(url, err):
     if url.scheme != 'https':
         # sys.exit("'%s' is not an https url" % url.geturl())
@@ -22,9 +17,13 @@ def readPEM(filename, type, err):
     # 0 - crlfile
     # 1 - cert
     try:
-        f = open(args["crlfile"]).read()
-        crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
-        revoked_objects = crl_object.get_revoked()
+        f = open(filename).read()
+
+        if type == 0:
+            crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
+            return crl_object.get_revoked()
+        else:
+            return OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
     except:
         err.append("Unable to read file")
 
@@ -55,18 +54,24 @@ if args["tlsv1.2"]:
 if args["sslv3"]:
     tls_version = OpenSSL.SSL.SSLv3_METHOD
 if args["crlfile"]:
-    readPEM(args["crlfile"], 0, err)
+    revoked_objects = readPEM(args["crlfile"], 0, err)
 if args["cacert"]:
-    readPEM(args["cacert"], 1, err)
+    cacert = readPEM(args["cacert"], 1, err)
 if args["allow_stale_certs"]:
     allow_stale_certs = args["allow_stale_certs"]
 if args["pinnedcertificate"]:
-    readPEM(args["pinnedcertificate"], 1, err)
-
-validate_options()
+    pinnedcertificate = readPEM(args["pinnedcertificate"], 1, err)
 
 url = urlparse(url)
 validate_url(url, err)
 if len(err) > 0:
     sys.exit("There is an error")
-connect_and_download(url)
+
+# Construct a hash/dictionary-like settings for the function to consume
+sec_settings = {}
+sec_settings["tls_version"] = tls_version
+sec_settings["revoked_objects"] = revoked_objects
+sec_settings["cacert"] = cacert
+sec_settings["allow_stale_certs"] = allow_stale_certs
+sec_settings["pinnedcertificate"] = pinnedcertificate
+connect_and_download(url, sec_settings)
