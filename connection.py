@@ -33,7 +33,10 @@ def setup_context(settings):
     context.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
                        cert_validate_callback)
 
-    context.set_default_verify_paths()
+    if settings.get("cacert_file"):
+        context.load_verify_locations(settings["cacert_file"])
+    else:
+        context.set_default_verify_paths()
     return context
 
 
@@ -59,7 +62,6 @@ def setup_connection(settings):
         sys.exit('SSL Handshake failed')
 
     server_cert = connection.get_peer_certificate()
-
     validate_certificate_subject(server_cert, settings["url"].hostname)
 
     return connection
@@ -144,11 +146,10 @@ def close_connection(connection):
 def connect_and_download(settings):
     global allow_stale_certs
     global pinned_cert
-    allow_stale_certs = settings["allow-stale-certs"]
+    allow_stale_certs = settings.get("allow-stale-certs")
     pinned_cert = settings.get("pinnedcertificate")
     connection = setup_connection(settings)
-    # Check with crlfile or cacert or pinnedcertificate
-    # Remember that pinnedcertificate overrides crlfile or cacert
+    # TODO: Check with crlfile
 
     send_get_request(connection, settings["url"])
     full_response = read_response(connection)

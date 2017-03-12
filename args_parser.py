@@ -55,6 +55,7 @@ def parse_args(system_arguments):
                 settings["revoked_objects"] = readPEM(arg, 0)
             elif runmode == "--cacert":
                 settings["cacert"] = readPEM(arg, 1)
+                settings["cacert_file"] = arg
             elif runmode == "--allow-stale-certs":
                 if arg.isdigit():
                     settings["allow-stale-certs"] = int(arg)
