@@ -3,7 +3,6 @@ import sys
 from OpenSSL import SSL
 from datetime import datetime, timedelta
 import re
-import traceback
 
 DEFAULT_HTTPS_PORT = 443
 READ_BUFFER_SIZE = 2048
@@ -60,8 +59,7 @@ def setup_connection(settings):
 
     try:
         connection.do_handshake()
-    except Exception as e:
-        print(traceback.format_exc())
+    except Exception:
         sys.exit('SSL Handshake failed')
 
     server_cert = connection.get_peer_certificate()
@@ -130,7 +128,6 @@ def cert_validate_callback(conn, cert, errno, depth, result):
         elif errno == 0:
             return True
         else:
-            print errno
             return False
 
 
