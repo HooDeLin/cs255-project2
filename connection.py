@@ -51,8 +51,7 @@ def setup_connection(settings):
 
     server_cert = connection.get_peer_certificate()
 
-    validate_certificate_dates(server_cert)
-    validate_certificate_subject(server_cert, url.hostname)
+    validate_certificate_subject(server_cert, settings["url"].hostname)
 
     return connection
 
@@ -108,9 +107,8 @@ def close_connection(connection):
     connection.close()
 
 
-def connect_and_download(url, settings):
-    connection = setup_connection(url, settings["tls_version"],
-                                  settings.get("cipher_list"))
+def connect_and_download(settings):
+    connection = setup_connection(settings)
     # Get certificate from the connection
     # Check with crlfile or cacert or pinnedcertificate
     # Remember that pinnedcertificate overrides crlfile or cacert
