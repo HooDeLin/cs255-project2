@@ -1,25 +1,72 @@
-import argparse
+import sys
+from urlparse import urlparse
+import OpenSSL
 
+def readPEM(filename, type):
+    # 0 - crlfile
+    # 1 - cert
+    try:
+        f = open(filename).read()
 
-def parse_args():
-    # TODO: All these code should be in a parser block
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ciphers", help="SSL ciphers to use (SSL)")
-    parser.add_argument("--tlsv1.0", help="Use TLSv1.0 (SSL)",
-                        action="store_true")
-    parser.add_argument("--tlsv1.1", help="Use TLSv1.1 (SSL)",
-                        action="store_true")
-    parser.add_argument("--tlsv1.2", help="Use TLSv1.2 (SSL)",
-                        action="store_true")
-    parser.add_argument("-3", "--sslv3", help="Use SSLv3 (SSL)",
-                        action="store_true")
-    parser.add_argument("--crlfile",
-                        help="Get a CRL list in PEM format from given file")
-    parser.add_argument("--cacert",
-                        help="CA certificate to verify peer against (SSL)",
-                        type=file)
-    parser.add_argument("--allow-stale-certs", type=int,
-                        help="Allow Stale Certs")
-    parser.add_argument("--pinnedcertificate", help="Pinned Certificate")
-    parser.add_argument("url", help="https url")
-    return vars(parser.parse_args())
+        if type == 0:
+            crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
+            return crl_object.get_revoked()
+        else:
+            return OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
+    except:
+        sys.exit("Unable to read file: " + filename)
+
+def validate_url(url):
+    if url.scheme != 'https':
+        sys.exit("'%s' is not an https url" % url.geturl())
+
+def parse_args(system_arguments):
+    # According to https://piazza.com/class/ixqf7ryk3276hz?cid=324, url is always the last element
+    url = urlparse(system_arguments[-1])
+    validate_url(url)
+    settings = {}
+    settings["url"] = url
+    settings["tls_version"] = OpenSSL.SSL.TLSv1_2_METHOD
+
+    # First argument is ./scurl, last one is url
+    argv = system_arguments[1:-1]
+    tls_flag = {
+        "--tlsv1.0": OpenSSL.SSL.TLSv1_METHOD,
+        "--tlsv1.1": OpenSSL.SSL.TLSv1_1_METHOD,
+        "--tlsv1.2": OpenSSL.SSL.TLSv1_2_METHOD,
+        "--sslv3"  : OpenSSL.SSL.SSLv3_METHOD,
+        "-3"       : OpenSSL.SSL.SSLv3_METHOD
+    }
+    supported_input = ["--ciphers", "--crlfile", "--cacert", "--allow-stale-certs", "--pinnedcertificate"]
+    runmode     = ""
+    for arg in argv:
+        if runmode == "":
+            if arg in tls_flag:
+                settings["tls_version"] = tls_flag[arg]
+            if arg in supported_input:
+                runmode = arg
+            else:
+                sys.exit("Unsupported flag: " + arg)
+        else:
+            # Previous arguments require an input
+            if runmode == "--ciphers":
+                settings["cipher"] = arg
+            elif runmode == "--crlfile":
+                settings["revoked_objects"] = readPEM(arg, 0)
+            elif runmode == "--cacert":
+                settings["cacert"] = readPEM(arg, 1)
+            elif runmode == "--allow-stale-certs":
+                if arg.isdigit():
+                    settings["allow-stale-certs"] = int(arg)
+                else:
+                    sys.exit(runmode + " must be an int")
+            elif runmode == "--pinnedcertificate":
+                settings["pinnedcertificate"] = readPEM(arg, 1)
+            else:
+                sys.exit(runmode + "requires an input")
+            runmode = ""
+
+    if runmode != "": #Arguments are leave hanging
+        sys.exit(runmode + "is missing")
+
+    return settings
