@@ -32,6 +32,8 @@ def setup_context(settings):
 
     context.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
                        cert_validate_callback)
+
+    context.set_default_verify_paths()
     return context
 
 
@@ -143,7 +145,7 @@ def connect_and_download(settings):
     global allow_stale_certs
     global pinned_cert
     allow_stale_certs = settings["allow-stale-certs"]
-    pinned_cert = settings["pinnedcertificate"]
+    pinned_cert = settings.get("pinnedcertificate")
     connection = setup_connection(settings)
     # Check with crlfile or cacert or pinnedcertificate
     # Remember that pinnedcertificate overrides crlfile or cacert
