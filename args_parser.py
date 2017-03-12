@@ -43,7 +43,7 @@ def parse_args(system_arguments):
         if runmode == "":
             if arg in tls_flag:
                 settings["tls_version"] = tls_flag[arg]
-            if arg in supported_input:
+            elif arg in supported_input:
                 runmode = arg
             else:
                 sys.exit("Unsupported flag: " + arg)
