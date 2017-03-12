@@ -1,10 +1,13 @@
 import socket
 import sys
 from OpenSSL import SSL
+import re
 
 DEFAULT_HTTPS_PORT = 443
 READ_BUFFER_SIZE = 2048
 HEADER_DELIMITER = "\r\n\r\n"
+WILDCARD_HOSTNAME_RE = re.compile(r'^[^\.]+?\.')
+X509_V_ERR_CERT_HAS_EXPIRED = 10
 
 
 def build_get_request(host, path):
@@ -31,6 +34,8 @@ def setup_connection(settings):
 
     port = settings["url"].port if (settings["url"].port is not None) else DEFAULT_HTTPS_PORT
     connection.set_tlsext_host_name(settings["url"].hostname)
+    context.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
+                       cert_validate_callback)
 
     try:
         connection.connect((settings["url"].hostname, port))
@@ -43,7 +48,41 @@ def setup_connection(settings):
         connection.do_handshake()
     except Exception:
         sys.exit('SSL Handshake failed')
+
+    server_cert = connection.get_peer_certificate()
+
+    validate_certificate_dates(server_cert)
+    validate_certificate_subject(server_cert, url.hostname)
+
     return connection
+
+
+def validate_certificate_subject(cert, hostname):
+    alt_names = []
+    for i in range(cert.get_extension_count()):
+        ext = cert.get_extension(i)
+        if (ext.get_short_name() == "subjectAltName"):
+            alt_names_as_string = str(ext)
+            alt_names = alt_names + map(lambda x: x[4:],
+                                        alt_names_as_string.split(', '))
+
+    # TODO: enhance wildcard matching to support "b*z.example.com"?
+    cert_cn = cert.get_subject().CN.lower()
+    hostname_with_wildcard = re.sub(WILDCARD_HOSTNAME_RE, '*.', hostname)
+    accepted_names = set([hostname.lower(), hostname_with_wildcard.lower()])
+    server_names = set([cert_cn] + alt_names)
+    if not server_names & accepted_names:
+        sys.exit("CN %s doesn't match any of %s" %
+                 (server_names, accepted_names))
+
+
+def cert_validate_callback(conn, cert, errno, depth, result):
+    if errno == X509_V_ERR_CERT_HAS_EXPIRED:
+        return False
+    elif errno == 0:
+        return True
+    else:
+        return False
 
 
 def send_get_request(connection, url):
@@ -69,8 +108,9 @@ def close_connection(connection):
     connection.close()
 
 
-def connect_and_download(settings):
-    connection = setup_connection(settings)
+def connect_and_download(url, settings):
+    connection = setup_connection(url, settings["tls_version"],
+                                  settings.get("cipher_list"))
     # Get certificate from the connection
     # Check with crlfile or cacert or pinnedcertificate
     # Remember that pinnedcertificate overrides crlfile or cacert
