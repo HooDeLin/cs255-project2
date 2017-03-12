@@ -1,6 +1,7 @@
 import socket
 import sys
 from OpenSSL import SSL
+from datetime import datetime, timedelta
 import re
 
 DEFAULT_HTTPS_PORT = 443
@@ -8,6 +9,8 @@ READ_BUFFER_SIZE = 2048
 HEADER_DELIMITER = "\r\n\r\n"
 WILDCARD_HOSTNAME_RE = re.compile(r'^[^\.]+?\.')
 X509_V_ERR_CERT_HAS_EXPIRED = 10
+
+allow_stale_certs = 0
 
 
 def build_get_request(host, path):
@@ -17,6 +20,7 @@ def build_get_request(host, path):
     User-Agent: secure-curl\r\n
     Connection: close\r\n\r\n''' % (path if len(path) > 0 else "/", host)
 
+
 def setup_context(settings):
     context = SSL.Context(settings["tls_version"])
     if "cipher" in settings:
@@ -24,6 +28,9 @@ def setup_context(settings):
             context.set_cipher_list(settings["cipher"])
         except:
             sys.exit("Cipher " + settings["cipher"] + " is not supported.")
+
+    context.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
+                       cert_validate_callback)
     return context
 
 
@@ -32,10 +39,9 @@ def setup_connection(settings):
     connection = SSL.Connection(
         context, socket.socket(socket.AF_INET, socket.SOCK_STREAM))
 
-    port = settings["url"].port if (settings["url"].port is not None) else DEFAULT_HTTPS_PORT
+    port = settings["url"].port if (
+        settings["url"].port is not None) else DEFAULT_HTTPS_PORT
     connection.set_tlsext_host_name(settings["url"].hostname)
-    context.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
-                       cert_validate_callback)
 
     try:
         connection.connect((settings["url"].hostname, port))
@@ -75,9 +81,21 @@ def validate_certificate_subject(cert, hostname):
                  (server_names, accepted_names))
 
 
+def validate_cert_expiry(cert):
+    cert_expiry = cert.get_notAfter()
+    cert_expiry_date = datetime.strptime(cert_expiry, "%Y%m%d%H%M%SZ")
+    now = datetime.now()
+    allowed_delta = timedelta(days=allow_stale_certs)
+    max_allowed_expiry = now - allowed_delta
+    return cert_expiry_date >= max_allowed_expiry
+
+
 def cert_validate_callback(conn, cert, errno, depth, result):
     if errno == X509_V_ERR_CERT_HAS_EXPIRED:
-        return False
+        if allow_stale_certs > 0:
+            return validate_cert_expiry(cert)
+        else:
+            return False
     elif errno == 0:
         return True
     else:
@@ -108,11 +126,13 @@ def close_connection(connection):
 
 
 def connect_and_download(settings):
+    global allow_stale_certs
+    allow_stale_certs = settings["allow-stale-certs"]
     connection = setup_connection(settings)
     # Get certificate from the connection
     # Check with crlfile or cacert or pinnedcertificate
     # Remember that pinnedcertificate overrides crlfile or cacert
-    # Also check allow_stale_certs
+
     send_get_request(connection, settings["url"])
     full_response = read_response(connection)
     close_connection(connection)

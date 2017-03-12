@@ -66,7 +66,8 @@ def parse_args(system_arguments):
                 sys.exit(runmode + "requires an input")
             runmode = ""
 
-    if runmode != "": #Arguments are leave hanging
+    # Arguments are leave hanging
+    if runmode != "":
         sys.exit(runmode + "is missing")
 
     return settings
