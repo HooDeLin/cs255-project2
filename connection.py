@@ -16,11 +16,7 @@ crl = None
 
 
 def build_get_request(host, path):
-    return '''GET %s HTTP/1.0\r\n
-    Host: %s\r\n
-    Accept: */*\r\n
-    User-Agent: secure-curl\r\n
-    Connection: close\r\n\r\n''' % (path if len(path) > 0 else "/", host)
+    return '''GET %s HTTP/1.0\r\nHost: %s\r\nAccept: */*\r\nUser-Agent: secure-curl\r\nConnection: close\r\n\r\n''' % (path if len(path) > 0 else "/", host)
 
 
 def setup_context(settings):
@@ -48,12 +44,13 @@ def setup_connection(settings):
 
     port = settings["url"].port if (
         settings["url"].port is not None) else DEFAULT_HTTPS_PORT
-    connection.set_tlsext_host_name(settings["url"].hostname)
 
     try:
         connection.connect((settings["url"].hostname, port))
     except socket.error:
         sys.exit('Connection failed')
+
+    connection.set_tlsext_host_name(settings["url"].hostname)
 
     connection.set_connect_state()
 
