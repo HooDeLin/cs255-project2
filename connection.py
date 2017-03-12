@@ -11,6 +11,7 @@ WILDCARD_HOSTNAME_RE = re.compile(r'^[^\.]+?\.')
 X509_V_ERR_CERT_HAS_EXPIRED = 10
 
 allow_stale_certs = 0
+pinned_cert = None
 
 
 def build_get_request(host, path):
@@ -81,6 +82,12 @@ def validate_certificate_subject(cert, hostname):
                  (server_names, accepted_names))
 
 
+def validate_pinned_cert(cert):
+    server_cert_sha256 = cert.digest('sha256')
+    pinned_cert_sha256 = pinned_cert.digest('sha256')
+    return server_cert_sha256 == pinned_cert_sha256
+
+
 def validate_cert_expiry(cert):
     cert_expiry = cert.get_notAfter()
     cert_expiry_date = datetime.strptime(cert_expiry, "%Y%m%d%H%M%SZ")
@@ -91,15 +98,22 @@ def validate_cert_expiry(cert):
 
 
 def cert_validate_callback(conn, cert, errno, depth, result):
-    if errno == X509_V_ERR_CERT_HAS_EXPIRED:
-        if allow_stale_certs > 0:
-            return validate_cert_expiry(cert)
+    # TODO: Pinned cert validation is untested
+    if pinned_cert:
+        if depth == 0:
+            return validate_pinned_cert(cert)
+        else:
+            return True
+    else:
+        if errno == X509_V_ERR_CERT_HAS_EXPIRED:
+            if allow_stale_certs > 0:
+                return validate_cert_expiry(cert)
+            else:
+                return False
+        elif errno == 0:
+            return True
         else:
             return False
-    elif errno == 0:
-        return True
-    else:
-        return False
 
 
 def send_get_request(connection, url):
@@ -127,9 +141,10 @@ def close_connection(connection):
 
 def connect_and_download(settings):
     global allow_stale_certs
+    global pinned_cert
     allow_stale_certs = settings["allow-stale-certs"]
+    pinned_cert = settings["pinnedcertificate"]
     connection = setup_connection(settings)
-    # Get certificate from the connection
     # Check with crlfile or cacert or pinnedcertificate
     # Remember that pinnedcertificate overrides crlfile or cacert
 
@@ -138,5 +153,4 @@ def connect_and_download(settings):
     close_connection(connection)
 
     header, body = full_response.split(HEADER_DELIMITER, 1)
-    # print header
     print body
