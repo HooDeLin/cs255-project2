@@ -166,4 +166,4 @@ def connect_and_download(settings):
     close_connection(connection)
 
     header, body = full_response.split(HEADER_DELIMITER, 1)
-    print body
+    sys.stdout.write(body)
