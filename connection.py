@@ -3,6 +3,7 @@ import sys
 from OpenSSL import SSL
 from datetime import datetime, timedelta
 import re
+import traceback
 
 DEFAULT_HTTPS_PORT = 443
 READ_BUFFER_SIZE = 2048
@@ -12,6 +13,7 @@ X509_V_ERR_CERT_HAS_EXPIRED = 10
 
 allow_stale_certs = 0
 pinned_cert = None
+crl = None
 
 
 def build_get_request(host, path):
@@ -58,7 +60,8 @@ def setup_connection(settings):
 
     try:
         connection.do_handshake()
-    except Exception:
+    except Exception as e:
+        print(traceback.format_exc())
         sys.exit('SSL Handshake failed')
 
     server_cert = connection.get_peer_certificate()
@@ -101,14 +104,24 @@ def validate_cert_expiry(cert):
     return cert_expiry_date >= max_allowed_expiry
 
 
+def validate_against_crl(cert):
+    cert_serial = int(cert.get_serial_number())
+    revoked_serials = map(lambda x: int(x.get_serial(), 16), crl)
+    return cert_serial not in revoked_serials
+
+
 def cert_validate_callback(conn, cert, errno, depth, result):
-    # TODO: Pinned cert validation is untested
     if pinned_cert:
         if depth == 0:
             return validate_pinned_cert(cert)
         else:
             return True
     else:
+        # validate_against_crl() returns True when cert is OK,
+        # in other words is NOT revoked
+        if crl and not validate_against_crl(cert):
+            return False
+
         if errno == X509_V_ERR_CERT_HAS_EXPIRED:
             if allow_stale_certs > 0:
                 return validate_cert_expiry(cert)
@@ -117,6 +130,7 @@ def cert_validate_callback(conn, cert, errno, depth, result):
         elif errno == 0:
             return True
         else:
+            print errno
             return False
 
 
@@ -146,10 +160,12 @@ def close_connection(connection):
 def connect_and_download(settings):
     global allow_stale_certs
     global pinned_cert
+    global crl
     allow_stale_certs = settings.get("allow-stale-certs")
     pinned_cert = settings.get("pinnedcertificate")
+    crl = settings.get("revoked_objects")
+
     connection = setup_connection(settings)
-    # TODO: Check with crlfile
 
     send_get_request(connection, settings["url"])
     full_response = read_response(connection)
