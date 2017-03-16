@@ -2,6 +2,7 @@ import sys
 from urlparse import urlparse
 import OpenSSL
 
+
 def readPEM(filename, type):
     # 0 - crlfile
     # 1 - cert
@@ -9,20 +10,29 @@ def readPEM(filename, type):
         f = open(filename).read()
 
         if type == 0:
-            crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM, f)
+            crl_object = OpenSSL.crypto.load_crl(OpenSSL.crypto.FILETYPE_PEM,
+                                                 f)
             return crl_object.get_revoked()
         else:
-            return OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f)
+            return OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM,
+                                                   f)
     except:
         sys.exit("Unable to read file: " + filename)
+
 
 def validate_url(url):
     if url.scheme != 'https':
         sys.exit("'%s' is not an https url" % url.geturl())
 
+
 def parse_args(system_arguments):
     # According to https://piazza.com/class/ixqf7ryk3276hz?cid=324, url is always the last element
-    url = urlparse(system_arguments[-1])
+    url_string = system_arguments[-1]
+
+    try:
+        url = urlparse(url_string)
+    except:
+        sys.exit('Can\'t parse the url')
     validate_url(url)
     settings = {}
     settings["url"] = url
@@ -34,11 +44,14 @@ def parse_args(system_arguments):
         "--tlsv1.0": OpenSSL.SSL.TLSv1_METHOD,
         "--tlsv1.1": OpenSSL.SSL.TLSv1_1_METHOD,
         "--tlsv1.2": OpenSSL.SSL.TLSv1_2_METHOD,
-        "--sslv3"  : OpenSSL.SSL.SSLv3_METHOD,
-        "-3"       : OpenSSL.SSL.SSLv3_METHOD
+        "--sslv3": OpenSSL.SSL.SSLv3_METHOD,
+        "-3": OpenSSL.SSL.SSLv3_METHOD
     }
-    supported_input = ["--ciphers", "--crlfile", "--cacert", "--allow-stale-certs", "--pinnedcertificate"]
-    runmode     = ""
+    supported_input = [
+        "--ciphers", "--crlfile", "--cacert", "--allow-stale-certs",
+        "--pinnedcertificate"
+    ]
+    runmode = ""
     for arg in argv:
         if runmode == "":
             if arg in tls_flag:

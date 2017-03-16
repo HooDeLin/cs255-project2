@@ -74,7 +74,6 @@ def validate_certificate_subject(cert, hostname):
             alt_names = alt_names + map(lambda x: x[4:],
                                         alt_names_as_string.split(', '))
 
-    # TODO: enhance wildcard matching to support "b*z.example.com"?
     cert_cn = cert.get_subject().CN.lower()
     hostname_with_wildcard = re.sub(WILDCARD_HOSTNAME_RE, '*.', hostname)
     accepted_names = set([hostname.lower(), hostname_with_wildcard.lower()])
